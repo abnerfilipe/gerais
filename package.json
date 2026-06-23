@@ -1,0 +1,16 @@
+{
+  "name": "nova-pasta-com-itens-3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "tableToJson.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  }
+}

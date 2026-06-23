@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Consultas - API UAU</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Segoe UI', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e1e1e; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-xl font-bold text-slate-900 tracking-tight">Consola de Consultas</h1>
+                <p class="text-xs text-slate-500 mt-0.5">Dicionário de dados, parâmetros e estruturas da API UAU</p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <button id="toggleAllBtn" onclick="toggleAllFolders()" class="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap">
+                    <svg id="toggleIcon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    <span id="toggleText">Recolher Tudo</span>
+                </button>
+
+                <div class="relative w-full sm:w-80">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input type="text" id="searchInput" 
+                           class="block w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 placeholder-slate-400 text-sm transition-all"
+                           placeholder="Pesquise dados, SQL ou parâmetros...">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div id="dashboardContent" class="space-y-6">
+            <div class="text-center py-12">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+                <p class="text-slate-500 text-sm mt-4">A processar dados estruturados da API...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let allData = [];
+        let currentQuery = '';
+        let allExpanded = true;
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[tag]));
+        }
+
+        function highlight(text) {
+            if (!text) return '';
+            const safeText = escapeHTML(String(text));
+            if (!currentQuery) return safeText;
+            const safeQuery = currentQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${safeQuery})`, 'gi');
+            return safeText.replace(regex, '<mark class="bg-yellow-300 text-yellow-900 font-bold px-0.5 rounded shadow-sm">$1</mark>');
+        }
+
+        // Função para Copiar o JSON para a Área de Transferência
+        window.copyToClipboard = function(btnElement) {
+            const payloadText = btnElement.getAttribute('data-payload');
+            navigator.clipboard.writeText(payloadText).then(() => {
+                const originalText = btnElement.innerText;
+                btnElement.innerText = 'Copiado!';
+                btnElement.classList.replace('bg-slate-700', 'bg-green-600');
+                btnElement.classList.replace('hover:bg-blue-600', 'hover:bg-green-500');
+                
+                setTimeout(() => {
+                    btnElement.innerText = 'Copiar';
+                    btnElement.classList.replace('bg-green-600', 'bg-slate-700');
+                    btnElement.classList.replace('hover:bg-green-500', 'hover:bg-blue-600');
+                }, 2000);
+            });
+        };
+
+        function groupDataByFolder(data) {
+            return data.reduce((acc, item) => {
+                const folder = item['Pasta'] || 'Sem Categoria';
+                if (!acc[folder]) acc[folder] = [];
+                acc[folder].push(item);
+                return acc;
+            }, {});
+        }
+
+        function toggleAllFolders() {
+            allExpanded = !allExpanded;
+            document.querySelectorAll('details.folder-section').forEach(detail => detail.open = allExpanded);
+            document.getElementById('toggleText').innerText = allExpanded ? 'Recolher Tudo' : 'Expandir Tudo';
+            document.getElementById('toggleIcon').style.transform = allExpanded ? 'rotate(0deg)' : 'rotate(-90deg)';
+        }
+
+        function renderDashboard(data) {
+            const container = document.getElementById('dashboardContent');
+            container.innerHTML = '';
+
+            const grouped = groupDataByFolder(data);
+            const folders = Object.keys(grouped).sort();
+
+            if (folders.length === 0) {
+                container.innerHTML = `<div class="text-center py-16 bg-white rounded-xl border border-slate-200 shadow-sm"><p class="mt-1 text-sm text-slate-500">Nenhum resultado encontrado.</p></div>`;
+                return;
+            }
+
+            folders.forEach(folderName => {
+                const folderItems = grouped[folderName];
+                const folderSection = document.createElement('details');
+                folderSection.className = 'group folder-section bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden';
+                if (allExpanded) folderSection.open = true;
+                
+                let cardsHTML = '';
+                folderItems.forEach(item => {
+                    const params = Array.isArray(item['ParametrosAPI']) ? item['ParametrosAPI'] : [];
+                    
+                    // LÓGICA DE GERAÇÃO DO PAYLOAD JSON
+                    const payloadArray = [];
+                    params.forEach(p => {
+                        payloadArray.push(p.Parametro);
+                        
+                        const tipo = String(p.Tipo || '').toLowerCase();
+                        const origem = String(p.OrigemDados || '').toLowerCase();
+                        
+                        // Infere o valor com base no tipo
+                        if (tipo.includes('texto') || tipo.includes('string') || origem.includes('livre')) {
+                            payloadArray.push("''"); // Strings enviam aspas duplas contendo aspas simples
+                        } else if (tipo.includes('data')) {
+                            payloadArray.push("2026-06-18"); // Data de teste
+                        } else {
+                            payloadArray.push("0"); // Numéricos, IDs ou escolhas
+                        }
+                    });
+
+                    const payloadObj = {
+                        Id: parseInt(item['Código'], 10),
+                        Parameters: payloadArray
+                    };
+                    
+                    // Formata o JSON com indentação de 2 espaços
+                    const payloadJSON = JSON.stringify(payloadObj, null, 2);
+
+                    // HTML dos Parâmetros Visuais
+                    let paramsHTML = '';
+                    if (params.length > 0) {
+                        paramsHTML = `
+                            <div class="mt-4 bg-slate-50 rounded-lg p-4 border border-slate-100">
+                                <p class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-1">
+                                    Parâmetros Requeridos (${params.length})
+                                </p>
+                                <div class="space-y-3">
+                                    ${params.map(p => `
+                                        <div class="text-xs bg-white p-3 rounded border border-slate-200 shadow-sm">
+                                            <div class="flex justify-between items-start mb-1.5">
+                                                <span class="font-mono font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">&lt;${highlight(p.Parametro)}&gt;</span>
+                                                <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium border border-slate-200">${highlight(p.Tipo)}</span>
+                                            </div>
+                                            <p class="text-slate-700 font-medium text-sm leading-snug">${highlight(p.Descricao)}</p>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>`;
+                    }
+
+                    // Renderização do Card
+                    const sqlText = String(item['Clausula SQL'] || '').toLowerCase();
+                    const forceOpenSQL = (currentQuery !== '' && sqlText.includes(currentQuery.toLowerCase())) ? 'open' : '';
+
+                    cardsHTML += `
+                        <div class="bg-white rounded-lg border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <span class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-md border border-blue-200">ID: ${highlight(item['Código'])}</span>
+                                </div>
+
+                                <h3 class="text-[17px] font-bold text-slate-900 leading-tight">
+                                    ${highlight(item['Descrição'])}
+                                </h3>
+
+                                ${paramsHTML}
+                            </div>
+
+                            <div class="mt-5 space-y-3">
+                                <div class="relative rounded-lg overflow-hidden border border-slate-700 shadow-sm">
+                                    <div class="flex items-center justify-between bg-slate-800 px-3 py-2 border-b border-slate-600">
+                                        <span class="text-[10px] text-slate-300 font-mono font-bold tracking-wider">BODY DA REQUISIÇÃO</span>
+                                        <button data-payload="${escapeHTML(payloadJSON)}" onclick="copyToClipboard(this)" class="bg-slate-700 hover:bg-blue-600 text-white text-[10px] font-semibold px-2.5 py-1 rounded transition-colors focus:outline-none">
+                                            Copiar
+                                        </button>
+                                    </div>
+                                    <pre class="bg-[#1e1e1e] text-[#4ade80] p-3 text-[11px] font-mono overflow-x-auto custom-scrollbar leading-relaxed">${highlight(payloadJSON)}</pre>
+                                </div>
+
+                                <details class="group/sql" ${forceOpenSQL}>
+                                    <summary class="list-none flex items-center justify-between text-xs text-slate-600 hover:text-blue-600 cursor-pointer font-bold transition-colors bg-slate-50 p-2 rounded border border-slate-200 mt-3">
+                                        <span class="flex items-center gap-1.5">
+                                            <svg class="w-4 h-4 group-open/sql:rotate-180 transition-transform text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                            Ver Estrutura SQL
+                                        </span>
+                                    </summary>
+                                    <div class="mt-2 bg-[#1e1e1e] rounded-lg p-4 text-[12px] font-mono text-slate-300 overflow-x-auto custom-scrollbar max-h-60 whitespace-pre-wrap leading-relaxed shadow-inner border border-slate-700">
+                                        ${highlight(item['Clausula SQL'])}
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                folderSection.innerHTML = `
+                    <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors select-none">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-blue-100 p-1.5 rounded-md text-blue-600 group-open:rotate-90 transition-transform duration-200"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></div>
+                            <h2 class="text-xl font-bold text-slate-800">${highlight(folderName)}</h2>
+                            <span class="bg-slate-200 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-full border border-slate-300">${folderItems.length}</span>
+                        </div>
+                    </summary>
+                    <div class="p-4 pt-0 border-t border-slate-100 bg-slate-50/50">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+                            ${cardsHTML}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(folderSection);
+            });
+        }
+
+        function filterContent(searchTerm) {
+            currentQuery = searchTerm.toLowerCase().trim();
+            if (!currentQuery) { renderDashboard(allData); return; }
+
+            const filtered = allData.filter(item => {
+                const params = Array.isArray(item['ParametrosAPI']) ? item['ParametrosAPI'] : [];
+                const paramsText = params.map(p => `${p.Parametro} ${p.Descricao}`).join(' ').toLowerCase();
+
+                return (
+                    String(item['Descrição'] || '').toLowerCase().includes(currentQuery) ||
+                    String(item['Código'] || '').toLowerCase().includes(currentQuery) ||
+                    String(item['Pasta'] || '').toLowerCase().includes(currentQuery) ||
+                    String(item['Clausula SQL'] || '').toLowerCase().includes(currentQuery) ||
+                    paramsText.includes(currentQuery)
+                );
+            });
+
+            const prevExpandedState = allExpanded;
+            allExpanded = true; 
+            renderDashboard(filtered);
+            allExpanded = prevExpandedState;
+        }
+
+        document.getElementById('searchInput').addEventListener('input', (e) => filterContent(e.target.value));
+
+        fetch('dados_com_parametros_api.json')
+            .then(res => res.json())
+            .then(data => { allData = data; renderDashboard(allData); })
+            .catch(err => console.error(err));
+    </script>
+</body>
+</html>
