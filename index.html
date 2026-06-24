@@ -25,6 +25,79 @@
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #1e1e1e; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+
+        /* Sidebar de Edição */
+        .edit-sidebar {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 0;
+            height: 100vh;
+            background: white;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+            transition: width 0.3s ease;
+            z-index: 40;
+            overflow-y: auto;
+        }
+
+        .edit-sidebar.open {
+            width: 380px;
+        }
+
+        .edit-sidebar::-webkit-scrollbar { width: 6px; }
+        .edit-sidebar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .edit-sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+        /* Overlay para fechar sidebar */
+        .edit-overlay {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 0;
+            height: 100vh;
+            background: rgba(0,0,0,0.3);
+            transition: width 0.3s ease;
+            z-index: 35;
+        }
+
+        .edit-overlay.open {
+            width: 100%;
+        }
+
+        /* Campo de notas com scroll independente */
+        .notes-textarea {
+            resize: none;
+            overflow-y: auto;
+        }
+
+        .notes-textarea::-webkit-scrollbar { width: 6px; }
+        .notes-textarea::-webkit-scrollbar-track { background: #f1f5f9; }
+        .notes-textarea::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+        /* Star icon animação */
+        .star-icon {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .star-icon:hover {
+            transform: scale(1.15);
+        }
+
+        .star-icon.active {
+            fill: #fbbf24;
+            color: #fbbf24;
+        }
+
+        /* Badge de favorito */
+        .favorite-badge {
+            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
@@ -37,6 +110,11 @@
             </div>
             
             <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <button id="favoritesBtn" onclick="toggleFavorites()" class="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold text-slate-700 bg-yellow-50 hover:bg-yellow-100 border border-yellow-300 rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap">
+                    <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <span id="favCount">Favoritos (0)</span>
+                </button>
+
                 <button id="toggleAllBtn" onclick="toggleAllFolders()" class="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap">
                     <svg id="toggleIcon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     <span id="toggleText">Recolher Tudo</span>
@@ -65,12 +143,396 @@
         </div>
     </main>
 
+    <!-- Edit Sidebar -->
+    <div id="editOverlay" class="edit-overlay" onclick="closeSidebar()"></div>
+    <aside id="editSidebar" class="edit-sidebar">
+        <div class="p-6 space-y-6">
+            <!-- Header da Sidebar -->
+            <div class="flex items-center justify-between sticky top-0 bg-white pb-4 border-b border-slate-200">
+                <h3 class="text-lg font-bold text-slate-900">Editar Consulta</h3>
+                <button onclick="closeSidebar()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Conteúdo da Edição -->
+            <div id="sidebarContent" class="space-y-6">
+                <!-- ID -->
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">ID</label>
+                    <input type="text" id="editId" disabled class="w-full mt-2 px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 text-sm cursor-not-allowed"/>
+                </div>
+
+                <!-- Código -->
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Código</label>
+                    <input type="text" id="editCodigo" disabled class="w-full mt-2 px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 text-sm cursor-not-allowed"/>
+                </div>
+
+                <!-- Descrição -->
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Descrição</label>
+                    <input type="text" id="editDescricao" disabled class="w-full mt-2 px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 text-sm cursor-not-allowed"/>
+                </div>
+
+                <!-- Pasta -->
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Pasta</label>
+                    <input type="text" id="editPasta" disabled class="w-full mt-2 px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-700 text-sm cursor-not-allowed"/>
+                </div>
+
+                <!-- Parâmetros -->
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 block">Parâmetros</label>
+                    <div id="editParametros" class="space-y-2 text-xs text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200 max-h-40 overflow-y-auto custom-scrollbar"></div>
+                </div>
+
+                <!-- Notas Editáveis -->
+                <div class="flex flex-col h-96 border-t pt-6">
+                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3">Notas & Anotações</label>
+                    <textarea 
+                        id="editNotes" 
+                        placeholder="Adicione suas anotações pessoais sobre esta consulta..."
+                        class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 notes-textarea"
+                    ></textarea>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="space-y-2 sticky bottom-0 bg-white pt-4 border-t border-slate-200">
+                    <button onclick="saveNotes()" class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-sm">
+                        Salvar Notas
+                    </button>
+                    <button onclick="closeSidebar()" class="w-full px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-900 font-semibold rounded-lg transition-colors text-sm">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Modal de Favoritos -->
+    <div id="favoritesModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-slate-200">
+                <h2 class="text-2xl font-bold text-slate-900">Meus Favoritos</h2>
+                <button onclick="closeFavoritesModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Conteúdo -->
+            <div id="favoritesContent" class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <div class="text-center py-12">
+                    <p class="text-slate-500">Nenhum favorito ainda. Clique no ícone de estrela em um card para adicionar!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // ==================== IndexedDB Management ====================
+        const DB_NAME = 'ConsultasUAU';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'favorites';
+
+        class FavoritesDB {
+            constructor() {
+                this.db = null;
+            }
+
+            async init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(DB_NAME, DB_VERSION);
+                    
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        this.db = request.result;
+                        resolve();
+                    };
+                    
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(STORE_NAME)) {
+                            const store = db.createObjectStore(STORE_NAME, { keyPath: 'codigo' });
+                            store.createIndex('timestamp', 'timestamp', { unique: false });
+                        }
+                    };
+                });
+            }
+
+            async add(favorite) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction([STORE_NAME], 'readwrite');
+                    const store = tx.objectStore(STORE_NAME);
+                    const request = store.put({ ...favorite, timestamp: Date.now() });
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(favorite.codigo);
+                });
+            }
+
+            async remove(codigo) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction([STORE_NAME], 'readwrite');
+                    const store = tx.objectStore(STORE_NAME);
+                    const request = store.delete(codigo);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve();
+                });
+            }
+
+            async get(codigo) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction([STORE_NAME], 'readonly');
+                    const store = tx.objectStore(STORE_NAME);
+                    const request = store.get(codigo);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(request.result);
+                });
+            }
+
+            async getAll() {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction([STORE_NAME], 'readonly');
+                    const store = tx.objectStore(STORE_NAME);
+                    const request = store.getAll();
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(request.result.sort((a, b) => b.timestamp - a.timestamp));
+                });
+            }
+
+            async isFavorite(codigo) {
+                const fav = await this.get(codigo);
+                return !!fav;
+            }
+        }
+
+        const favDB = new FavoritesDB();
+        let currentEditingCodigo = null;
+
+        // ==================== Estado Global ====================
         let allData = [];
         let currentQuery = '';
         let allExpanded = true;
+        let allFavorites = [];
 
-        function escapeHTML(str) {
+        // ==================== Funções de Favoritos ====================
+        async function toggleFavorite(codigo, item) {
+            try {
+                const isFav = await favDB.isFavorite(codigo);
+                if (isFav) {
+                    await favDB.remove(codigo);
+                } else {
+                    await favDB.add({
+                        codigo: codigo,
+                        descricao: item['Descrição'],
+                        pasta: item['Pasta'],
+                        data: item,
+                        notes: ''
+                    });
+                }
+                updateAllFavoriteIcons();
+                updateFavCount();
+                renderFavoritesModal();
+            } catch (error) {
+                console.error('Erro ao alternar favorito:', error);
+            }
+        }
+
+        async function updateAllFavoriteIcons() {
+            allFavorites = await favDB.getAll();
+            document.querySelectorAll('.star-icon').forEach(star => {
+                const codigo = star.getAttribute('data-codigo');
+                const isFav = allFavorites.some(f => f.codigo === codigo);
+                if (isFav) {
+                    star.classList.add('active');
+                    star.setAttribute('fill', 'currentColor');
+                } else {
+                    star.classList.remove('active');
+                    star.removeAttribute('fill');
+                }
+            });
+        }
+
+        async function updateFavCount() {
+            allFavorites = await favDB.getAll();
+            document.getElementById('favCount').innerText = `Favoritos (${allFavorites.length})`;
+        }
+
+        async function toggleFavorites() {
+            const modal = document.getElementById('favoritesModal');
+            modal.classList.remove('hidden');
+            renderFavoritesModal();
+        }
+
+        async function renderFavoritesModal() {
+            const container = document.getElementById('favoritesContent');
+            allFavorites = await favDB.getAll();
+
+            if (allFavorites.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12">
+                        <svg class="w-16 h-16 mx-auto text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <p class="text-slate-500 text-lg">Nenhum favorito ainda</p>
+                        <p class="text-slate-400 text-sm mt-2">Clique no ícone de estrela em um card para adicionar!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const filtered = currentQuery 
+                ? allFavorites.filter(fav => 
+                    fav.descricao.toLowerCase().includes(currentQuery.toLowerCase()) ||
+                    fav.pasta.toLowerCase().includes(currentQuery.toLowerCase()) ||
+                    (fav.notes && fav.notes.toLowerCase().includes(currentQuery.toLowerCase()))
+                )
+                : allFavorites;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-slate-500">Nenhum favorito corresponde à busca.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(fav => `
+                <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 mb-4 hover:border-blue-300 transition-colors">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">ID: ${escapeHTML(fav.codigo)}</span>
+                                <span class="text-[10px] text-slate-500 bg-slate-200 px-2 py-1 rounded">${escapeHTML(fav.pasta)}</span>
+                            </div>
+                            <h4 class="font-bold text-slate-900 text-sm mb-3">${escapeHTML(fav.descricao)}</h4>
+                            ${fav.notes ? `
+                                <div class="bg-white border border-slate-300 p-3 rounded text-xs text-slate-700 mb-3 max-h-24 overflow-y-auto custom-scrollbar whitespace-pre-wrap break-words">
+                                    <p class="font-mono text-[11px] leading-relaxed">${escapeHTML(fav.notes)}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <button onclick="removeFromFavorites('${escapeHTML(fav.codigo)}')" class="text-red-400 hover:text-red-600 transition-colors p-1">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <button onclick="openEditSidebar('${escapeHTML(fav.codigo)}', true)" class="w-full px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded transition-colors text-center">
+                        Editar Notas
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function removeFromFavorites(codigo) {
+            if (confirm('Remover dos favoritos?')) {
+                await favDB.remove(codigo);
+                updateAllFavoriteIcons();
+                updateFavCount();
+                renderFavoritesModal();
+            }
+        }
+
+        function closeFavoritesModal() {
+            document.getElementById('favoritesModal').classList.add('hidden');
+        }
+
+        // ==================== Sidebar de Edição ====================
+        async function openEditSidebar(codigo, isFromFavorites = false) {
+            currentEditingCodigo = codigo;
+            const item = allData.find(d => d['Código'] === codigo);
+            if (!item) return;
+
+            const fav = await favDB.get(codigo);
+
+            // Preencher campos
+            document.getElementById('editId').value = item['Descrição'];
+            document.getElementById('editCodigo').value = codigo;
+            document.getElementById('editDescricao').value = item['Descrição'];
+            document.getElementById('editPasta').value = item['Pasta'];
+            document.getElementById('editNotes').value = fav?.notes || '';
+
+            // Parâmetros
+            const params = Array.isArray(item['ParametrosAPI']) ? item['ParametrosAPI'] : [];
+            const paramsHTML = params.length > 0 
+                ? params.map(p => `<div class="border-l-2 border-blue-400 pl-2 py-1">
+                    <div class="font-bold text-blue-600">&lt;${escapeHTML(p.Parametro)}&gt;</div>
+                    <div class="text-slate-600">${escapeHTML(p.Descricao)}</div>
+                </div>`).join('')
+                : '<p class="text-slate-400">Sem parâmetros</p>';
+            
+            document.getElementById('editParametros').innerHTML = paramsHTML;
+
+            // Abrir sidebar
+            document.getElementById('editSidebar').classList.add('open');
+            document.getElementById('editOverlay').classList.add('open');
+
+            // Se aberto de favoritos, manter favoritos aberto
+            if (!isFromFavorites) {
+                closeFavoritesModal();
+            }
+
+            // Focus na área de notas
+            setTimeout(() => {
+                document.getElementById('editNotes').focus();
+            }, 300);
+        }
+
+        function closeSidebar() {
+            document.getElementById('editSidebar').classList.remove('open');
+            document.getElementById('editOverlay').classList.remove('open');
+            currentEditingCodigo = null;
+        }
+
+        async function saveNotes() {
+            if (!currentEditingCodigo) return;
+
+            const notes = document.getElementById('editNotes').value;
+            const fav = await favDB.get(currentEditingCodigo);
+
+            if (fav) {
+                await favDB.add({
+                    ...fav,
+                    notes: notes
+                });
+            } else {
+                // Se não for favorito, adicionar como favorito com notas
+                const item = allData.find(d => d['Código'] === currentEditingCodigo);
+                if (item) {
+                    await favDB.add({
+                        codigo: currentEditingCodigo,
+                        descricao: item['Descrição'],
+                        pasta: item['Pasta'],
+                        data: item,
+                        notes: notes
+                    });
+                }
+            }
+
+            updateFavCount();
+            updateAllFavoriteIcons();
+            renderFavoritesModal();
+
+            // Feedback
+            const btn = document.querySelector('#editSidebar button:first-of-type');
+            const originalText = btn.innerText;
+            btn.innerText = '✓ Salvo com sucesso!';
+            btn.classList.add('bg-green-600');
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.remove('bg-green-600');
+            }, 2000);
+        }
+
+        // ==================== Funções Existentes ====================
+
             if (!str) return '';
             return str.replace(/[&<>'"]/g, tag => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -198,6 +660,11 @@
                             <div>
                                 <div class="flex items-center justify-between gap-2 mb-3">
                                     <span class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-md border border-blue-200">ID: ${highlight(item['Código'])}</span>
+                                    <button class="star-icon" data-codigo="${item['Código']}" onclick="event.stopPropagation(); toggleFavorite('${item['Código']}', ${JSON.stringify(item).replace(/"/g, '&quot;')});" style="background: none; border: none; cursor: pointer;">
+                                        <svg class="w-5 h-5 text-slate-400 hover:text-yellow-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                        </svg>
+                                    </button>
                                 </div>
 
                                 <h3 class="text-[17px] font-bold text-slate-900 leading-tight">
@@ -229,6 +696,10 @@
                                         ${highlight(item['Clausula SQL'])}
                                     </div>
                                 </details>
+
+                                <button onclick="openEditSidebar('${item['Código']}')" class="w-full mt-3 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded transition-colors text-center">
+                                    ✎ Editar Notas
+                                </button>
                             </div>
                         </div>
                     `;
@@ -273,13 +744,28 @@
             allExpanded = true; 
             renderDashboard(filtered);
             allExpanded = prevExpandedState;
+            renderFavoritesModal(); // Atualizar também a modal de favoritos com a busca
         }
 
         document.getElementById('searchInput').addEventListener('input', (e) => filterContent(e.target.value));
 
+        // Inicializar IndexedDB e carregar dados
+        async function initApp() {
+            try {
+                await favDB.init();
+                updateFavCount();
+            } catch (error) {
+                console.error('Erro ao inicializar IndexedDB:', error);
+            }
+        }
+
         fetch('dados_com_parametros_api.json')
             .then(res => res.json())
-            .then(data => { allData = data; renderDashboard(allData); })
+            .then(data => { 
+                allData = data; 
+                renderDashboard(allData);
+                initApp();
+            })
             .catch(err => console.error(err));
     </script>
 </body>
