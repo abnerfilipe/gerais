@@ -120,7 +120,7 @@
                     <span id="toggleText">Recolher Tudo</span>
                 </button>
 
-                <div class="relative w-full sm:w-80">
+                <div class="relative w-full sm:w-80 group/search">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -128,7 +128,17 @@
                     </div>
                     <input type="text" id="searchInput" 
                            class="block w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 placeholder-slate-400 text-sm transition-all"
-                           placeholder="Pesquise dados, SQL ou parâmetros...">
+                           placeholder='Pesquise: termo | "exato" | termo1, termo2'>
+                    <!-- Tooltip com dicas de busca -->
+                    <div class="absolute top-full left-0 mt-1 hidden group-focus-within/search:block bg-slate-900 text-white text-xs rounded-lg p-3 shadow-lg z-50 w-72 whitespace-normal border border-slate-700">
+                        <p class="font-bold mb-2 text-blue-300">💡 Dicas de Busca:</p>
+                        <ul class="space-y-1.5 text-slate-200">
+                            <li><span class="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-yellow-300">123</span> Busca número exato</li>
+                            <li><span class="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-yellow-300">"texto"</span> Busca exata (entre aspas)</li>
+                            <li><span class="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-yellow-300">termo1, termo2</span> Busca múltipla (OU)</li>
+                            <li><span class="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-yellow-300">SQL</span> Busca em campos, SQL, parâmetros</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -754,27 +764,137 @@
             });
         }
 
+        // ==================== Sistema Avançado de Busca ====================
+        
+        /**
+         * Parse a search query into different search types
+         * Examples:
+         * - "termo exato" -> exact search
+         * - termo1, termo2, termo3 -> OR search
+         * - 123 -> exact number search
+         * - termo -> regular search
+         */
+        function parseSearchQuery(query) {
+            query = query.trim();
+            if (!query) return { type: 'empty', values: [] };
+
+            // Busca exata com aspas: "termo exato"
+            const exactMatch = query.match(/^"([^"]+)"$/);
+            if (exactMatch) {
+                return { 
+                    type: 'exact', 
+                    value: exactMatch[1].toLowerCase(),
+                    original: exactMatch[1]
+                };
+            }
+
+            // Múltiplos termos com vírgula: termo1, termo2, termo3
+            if (query.includes(',')) {
+                const terms = query.split(',').map(t => t.trim().toLowerCase()).filter(t => t);
+                if (terms.length > 1) {
+                    return {
+                        type: 'or',
+                        values: terms
+                    };
+                }
+            }
+
+            // Número exato: apenas números
+            if (/^\d+$/.test(query)) {
+                return {
+                    type: 'exact_number',
+                    value: query
+                };
+            }
+
+            // Busca regular (partial match)
+            return {
+                type: 'partial',
+                value: query
+            };
+        }
+
+        /**
+         * Check if a value matches the search criteria
+         */
+        function matchesAdvancedSearch(searchParsed, itemValue) {
+            if (!itemValue) return false;
+            const text = String(itemValue).toLowerCase();
+
+            switch (searchParsed.type) {
+                case 'exact':
+                    // Busca exata: palavra completa
+                    return text === searchParsed.value;
+                
+                case 'exact_number':
+                    // Número exato: apenas o número
+                    return text === searchParsed.value;
+                
+                case 'or':
+                    // Qualquer um dos termos
+                    return searchParsed.values.some(term => text.includes(term));
+                
+                case 'partial':
+                    // Busca parcial (padrão)
+                    return text.includes(searchParsed.value);
+                
+                default:
+                    return false;
+            }
+        }
+
         function filterContent(searchTerm) {
             currentQuery = searchTerm.toLowerCase().trim();
-            if (!currentQuery) { renderDashboard(allData); return; }
+            
+            // Se vazio, mostra tudo
+            if (!currentQuery) { 
+                renderDashboard(allData); 
+                return; 
+            }
+
+            const searchParsed = parseSearchQuery(searchTerm);
 
             const filtered = allData.filter(item => {
                 const params = Array.isArray(item['ParametrosAPI']) ? item['ParametrosAPI'] : [];
                 const paramsText = params.map(p => `${p.Parametro} ${p.Descricao}`).join(' ').toLowerCase();
 
-                // Buscar pelos campos do item
-                const matchesItem = (
-                    String(item['Descrição'] || '').toLowerCase().includes(currentQuery) ||
-                    String(item['Código'] || '').toLowerCase().includes(currentQuery) ||
-                    String(item['Pasta'] || '').toLowerCase().includes(currentQuery) ||
-                    String(item['Clausula SQL'] || '').toLowerCase().includes(currentQuery) ||
-                    paramsText.includes(currentQuery)
-                );
+                // Preparar todos os textos do item
+                const textsToSearch = [
+                    item['Descrição'] || '',
+                    item['Código'] || '',
+                    item['Pasta'] || '',
+                    item['Clausula SQL'] || '',
+                    paramsText
+                ];
+
+                // Buscar em qualquer campo do item
+                let matchesItem = false;
+
+                if (searchParsed.type === 'exact') {
+                    // Busca exata: apenas palavra completa
+                    matchesItem = textsToSearch.some(text => {
+                        const lowerText = String(text).toLowerCase();
+                        return lowerText === searchParsed.value || lowerText.includes(` ${searchParsed.value} `) || lowerText.startsWith(`${searchParsed.value} `) || lowerText.endsWith(` ${searchParsed.value}`);
+                    });
+                } else if (searchParsed.type === 'exact_number') {
+                    // Número exato: ID deve ser exatamente igual
+                    matchesItem = String(item['Código']).toLowerCase() === searchParsed.value;
+                } else if (searchParsed.type === 'or') {
+                    // Múltiplos termos: qualquer um deles
+                    matchesItem = searchParsed.values.some(term =>
+                        textsToSearch.some(text => String(text).toLowerCase().includes(term))
+                    );
+                } else {
+                    // Busca parcial (padrão)
+                    matchesItem = textsToSearch.some(text => 
+                        String(text).toLowerCase().includes(searchParsed.value)
+                    );
+                }
 
                 // Buscar pelas notas do favorito
                 const matchesNotes = allFavorites.some(fav => 
                     fav.codigo === item['Código'] && 
-                    String(fav.notes || '').toLowerCase().includes(currentQuery)
+                    String(fav.notes || '').toLowerCase().includes(searchParsed.type === 'exact' ? searchParsed.value : searchTerm.toLowerCase())
                 );
 
                 return matchesItem || matchesNotes;
