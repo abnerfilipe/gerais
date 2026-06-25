@@ -138,7 +138,7 @@
         <div id="dashboardContent" class="space-y-6">
             <div class="text-center py-12">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-                <p class="text-slate-500 text-sm mt-4">A processar dados estruturados da API...</p>
+                <p class="text-slate-500 text-sm mt-4">Carregando consultas...</p>
             </div>
         </div>
     </main>
@@ -338,6 +338,7 @@
                 updateAllFavoriteIcons();
                 updateFavCount();
                 renderFavoritesModal();
+                loadNotesForCards();
             } catch (error) {
                 console.error('Erro ao alternar favorito:', error);
             }
@@ -437,6 +438,7 @@
                 updateAllFavoriteIcons();
                 updateFavCount();
                 renderFavoritesModal();
+                loadNotesForCards();
             }
         }
 
@@ -519,6 +521,7 @@
             updateFavCount();
             updateAllFavoriteIcons();
             renderFavoritesModal();
+            loadNotesForCards(); // Atualizar notas nos cards
 
             // Feedback
             const btn = document.querySelector('#editSidebar button:first-of-type');
@@ -532,7 +535,7 @@
         }
 
         // ==================== Funções Existentes ====================
-
+        function escapeHTML(str) {
             if (!str) return '';
             return str.replace(/[&<>'"]/g, tag => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -672,6 +675,10 @@
                                 </h3>
 
                                 ${paramsHTML}
+
+                                <!-- Notas Salvas -->
+                                <div class="notes-container-${item['Código']}" style="display: none;">
+                                </div>
                             </div>
 
                             <div class="mt-5 space-y-3">
@@ -721,6 +728,30 @@
                 `;
                 container.appendChild(folderSection);
             });
+
+            // Carregar notas para cada card após renderizar
+            loadNotesForCards();
+        }
+
+        async function loadNotesForCards() {
+            allFavorites = await favDB.getAll();
+            allFavorites.forEach(fav => {
+                const container = document.querySelector(`.notes-container-${fav.codigo}`);
+                if (container && fav.notes) {
+                    container.innerHTML = `
+                        <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            <p class="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                                Suas Notas
+                            </p>
+                            <div class="bg-white border border-amber-100 rounded p-2 text-xs text-slate-700 max-h-32 overflow-y-auto custom-scrollbar whitespace-pre-wrap break-words font-mono">
+                                ${escapeHTML(fav.notes)}
+                            </div>
+                        </div>
+                    `;
+                    container.style.display = 'block';
+                }
+            });
         }
 
         function filterContent(searchTerm) {
@@ -731,13 +762,22 @@
                 const params = Array.isArray(item['ParametrosAPI']) ? item['ParametrosAPI'] : [];
                 const paramsText = params.map(p => `${p.Parametro} ${p.Descricao}`).join(' ').toLowerCase();
 
-                return (
+                // Buscar pelos campos do item
+                const matchesItem = (
                     String(item['Descrição'] || '').toLowerCase().includes(currentQuery) ||
                     String(item['Código'] || '').toLowerCase().includes(currentQuery) ||
                     String(item['Pasta'] || '').toLowerCase().includes(currentQuery) ||
                     String(item['Clausula SQL'] || '').toLowerCase().includes(currentQuery) ||
                     paramsText.includes(currentQuery)
                 );
+
+                // Buscar pelas notas do favorito
+                const matchesNotes = allFavorites.some(fav => 
+                    fav.codigo === item['Código'] && 
+                    String(fav.notes || '').toLowerCase().includes(currentQuery)
+                );
+
+                return matchesItem || matchesNotes;
             });
 
             const prevExpandedState = allExpanded;
@@ -754,6 +794,7 @@
             try {
                 await favDB.init();
                 updateFavCount();
+                loadNotesForCards();
             } catch (error) {
                 console.error('Erro ao inicializar IndexedDB:', error);
             }
