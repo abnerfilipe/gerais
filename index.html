@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     fontFamily: {
@@ -98,6 +99,78 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+
+        /* ==================== Dark Mode ==================== */
+        html.dark { color-scheme: dark; }
+
+        html.dark body {
+            background: #020617;
+            color: #e2e8f0;
+        }
+
+        html.dark .bg-white { background-color: #0f172a !important; }
+        html.dark .bg-slate-50 { background-color: #111827 !important; }
+        html.dark .bg-slate-50\/50 { background-color: #0b1220 !important; }
+        html.dark .bg-slate-100 { background-color: #1e293b !important; }
+        html.dark .bg-slate-200 { background-color: #334155 !important; }
+
+        html.dark .text-slate-900 { color: #f8fafc !important; }
+        html.dark .text-slate-800 { color: #f1f5f9 !important; }
+        html.dark .text-slate-700 { color: #e2e8f0 !important; }
+        html.dark .text-slate-600 { color: #cbd5e1 !important; }
+        html.dark .text-slate-500 { color: #94a3b8 !important; }
+        html.dark .text-slate-400 { color: #94a3b8 !important; }
+
+        html.dark .border-slate-100 { border-color: #1f2937 !important; }
+        html.dark .border-slate-200 { border-color: #334155 !important; }
+        html.dark .border-slate-300 { border-color: #475569 !important; }
+        html.dark .shadow-sm,
+        html.dark .shadow-md,
+        html.dark .shadow-2xl,
+        html.dark .shadow-inner {
+            box-shadow: none !important;
+        }
+
+        html.dark .edit-sidebar {
+            background: #0f172a;
+            box-shadow: -2px 0 12px rgba(0,0,0,0.4);
+        }
+
+        html.dark .edit-sidebar::-webkit-scrollbar-track,
+        html.dark .notes-textarea::-webkit-scrollbar-track {
+            background: #0b1220;
+        }
+
+        html.dark .edit-sidebar::-webkit-scrollbar-thumb,
+        html.dark .notes-textarea::-webkit-scrollbar-thumb,
+        html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+
+        html.dark .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0b1220;
+        }
+
+        html.dark #searchInput,
+        html.dark #editNotes,
+        html.dark #editId,
+        html.dark #editCodigo,
+        html.dark #editDescricao,
+        html.dark #editPasta {
+            background-color: #0b1220 !important;
+            color: #e2e8f0 !important;
+            border-color: #334155 !important;
+        }
+
+        html.dark #searchInput::placeholder,
+        html.dark #editNotes::placeholder {
+            color: #94a3b8;
+        }
+
+        html.dark mark {
+            background: #facc15 !important;
+            color: #111827 !important;
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
@@ -110,6 +183,11 @@
             </div>
             
             <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <button id="themeToggleBtn" onclick="toggleTheme()" class="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap">
+                    <span id="themeIcon" aria-hidden="true">🌙</span>
+                    <span id="themeText">Modo Escuro</span>
+                </button>
+
                 <button id="favoritesBtn" onclick="toggleFavorites()" class="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold text-slate-700 bg-yellow-50 hover:bg-yellow-100 border border-yellow-300 rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap">
                     <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                     <span id="favCount">Favoritos (0)</span>
@@ -323,12 +401,42 @@
 
         const favDB = new FavoritesDB();
         let currentEditingCodigo = null;
+        const THEME_STORAGE_KEY = 'consultasUAU-theme';
 
         // ==================== Estado Global ====================
         let allData = [];
         let currentQuery = '';
         let allExpanded = true;
         let allFavorites = [];
+
+        // ==================== Tema (Dark/Light) ====================
+        function getPreferredTheme() {
+            const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+            if (savedTheme === 'dark' || savedTheme === 'light') {
+                return savedTheme;
+            }
+
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        function applyTheme(theme) {
+            const isDark = theme === 'dark';
+            document.documentElement.classList.toggle('dark', isDark);
+
+            const themeText = document.getElementById('themeText');
+            const themeIcon = document.getElementById('themeIcon');
+
+            if (themeText && themeIcon) {
+                themeText.innerText = isDark ? 'Modo Claro' : 'Modo Escuro';
+                themeIcon.innerText = isDark ? '☀️' : '🌙';
+            }
+        }
+
+        function toggleTheme() {
+            const nextTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+            localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+            applyTheme(nextTheme);
+        }
 
         // ==================== Funções de Favoritos ====================
         async function toggleFavorite(codigo, item) {
@@ -919,6 +1027,9 @@
                 console.error('Erro ao inicializar IndexedDB:', error);
             }
         }
+
+        // Aplica tema preferido imediatamente
+        applyTheme(getPreferredTheme());
 
         fetch('dados_com_parametros_api.json')
             .then(res => res.json())
