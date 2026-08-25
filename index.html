@@ -24,8 +24,8 @@
         details > summary::-webkit-details-marker { display: none; }
         
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #1e1e1e; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
 
         /* Sidebar de Edição */
         .edit-sidebar {
@@ -37,7 +37,7 @@
             background: white;
             box-shadow: -2px 0 8px rgba(0,0,0,0.1);
             transition: width 0.3s ease;
-            z-index: 40;
+            z-index: 60;
             overflow-y: auto;
         }
 
@@ -58,7 +58,7 @@
             height: 100vh;
             background: rgba(0,0,0,0.3);
             transition: width 0.3s ease;
-            z-index: 35;
+            z-index: 55;
         }
 
         .edit-overlay.open {
@@ -113,6 +113,10 @@
         html.dark .bg-slate-50\/50 { background-color: #0b1220 !important; }
         html.dark .bg-slate-100 { background-color: #1e293b !important; }
         html.dark .bg-slate-200 { background-color: #334155 !important; }
+        
+        html.dark .bg-yellow-50 { background-color: #422006 !important; }
+        html.dark .bg-blue-50 { background-color: #0c1e3d !important; }
+        html.dark .bg-amber-50 { background-color: #451a03 !important; }
 
         html.dark .text-slate-900 { color: #f8fafc !important; }
         html.dark .text-slate-800 { color: #f1f5f9 !important; }
@@ -120,10 +124,28 @@
         html.dark .text-slate-600 { color: #cbd5e1 !important; }
         html.dark .text-slate-500 { color: #94a3b8 !important; }
         html.dark .text-slate-400 { color: #94a3b8 !important; }
+        
+        html.dark .text-amber-700 { color: #fbbf24 !important; }
+        html.dark .text-yellow-500 { color: #fbbf24 !important; }
+        
+        html.dark #favoritesBtn {
+            background-color: #78350f !important;
+            color: #fbbf24 !important;
+            border-color: #92400e !important;
+        }
+        
+        html.dark #favoritesBtn:hover {
+            background-color: #92400e !important;
+        }
 
         html.dark .border-slate-100 { border-color: #1f2937 !important; }
         html.dark .border-slate-200 { border-color: #334155 !important; }
         html.dark .border-slate-300 { border-color: #475569 !important; }
+        
+        html.dark .border-yellow-300 { border-color: #78350f !important; }
+        html.dark .border-blue-200 { border-color: #1e3a8a !important; }
+        html.dark .border-amber-200 { border-color: #78350f !important; }
+        html.dark .border-amber-100 { border-color: #78350f !important; }
         html.dark .shadow-sm,
         html.dark .shadow-md,
         html.dark .shadow-2xl,
@@ -208,7 +230,7 @@
                            class="block w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 placeholder-slate-400 text-sm transition-all"
                            placeholder='Pesquise: termo | "exato" | termo1, termo2'>
                     <!-- Tooltip com dicas de busca -->
-                    <div class="absolute top-full left-0 mt-1 hidden group-focus-within/search:block bg-slate-900 text-white text-xs rounded-lg p-3 shadow-lg z-50 w-72 whitespace-normal border border-slate-700">
+                    <div id="searchHints" class="absolute top-full left-0 mt-1 bg-slate-900 text-white text-xs rounded-lg p-3 shadow-lg z-50 w-72 whitespace-normal border border-slate-700" style="display: none;">
                         <p class="font-bold mb-2 text-blue-300">💡 Dicas de Busca:</p>
                         <ul class="space-y-1.5 text-slate-200">
                             <li><span class="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-yellow-300">123</span> Busca número exato</li>
@@ -236,7 +258,7 @@
     <aside id="editSidebar" class="edit-sidebar">
         <div class="p-6 space-y-6">
             <!-- Header da Sidebar -->
-            <div class="flex items-center justify-between sticky top-0 bg-white pb-4 border-b border-slate-200">
+            <div class="flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 pb-4 border-b border-slate-200">
                 <h3 class="text-lg font-bold text-slate-900">Editar Consulta</h3>
                 <button onclick="closeSidebar()" class="text-slate-400 hover:text-slate-600 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,8 +310,8 @@
                 </div>
 
                 <!-- Botões de Ação -->
-                <div class="space-y-2 sticky bottom-0 bg-white pt-4 border-t border-slate-200">
-                    <button onclick="saveNotes()" class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-sm">
+                <div class="space-y-2 sticky bottom-0 bg-white dark:bg-slate-900 pt-4 border-t border-slate-200">
+                    <button id="saveNotesBtn" onclick="saveNotes()" class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-sm">
                         Salvar Notas
                     </button>
                     <button onclick="closeSidebar()" class="w-full px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-900 font-semibold rounded-lg transition-colors text-sm">
@@ -439,8 +461,14 @@
         }
 
         // ==================== Funções de Favoritos ====================
-        async function toggleFavorite(codigo, item) {
+        async function toggleFavorite(codigo) {
             try {
+                const item = allData.find(d => d['Código'] === codigo);
+                if (!item) {
+                    console.error('Item não encontrado:', codigo);
+                    return;
+                }
+                
                 const isFav = await favDB.isFavorite(codigo);
                 if (isFav) {
                     await favDB.remove(codigo);
@@ -467,12 +495,19 @@
             document.querySelectorAll('.star-icon').forEach(star => {
                 const codigo = star.getAttribute('data-codigo');
                 const isFav = allFavorites.some(f => f.codigo === codigo);
+                const svg = star.querySelector('svg');
                 if (isFav) {
                     star.classList.add('active');
-                    star.setAttribute('fill', 'currentColor');
+                    if (svg) {
+                        svg.setAttribute('fill', 'currentColor');
+                        svg.classList.add('text-yellow-500');
+                    }
                 } else {
                     star.classList.remove('active');
-                    star.removeAttribute('fill');
+                    if (svg) {
+                        svg.setAttribute('fill', 'none');
+                        svg.classList.remove('text-yellow-500');
+                    }
                 }
             });
         }
@@ -505,24 +540,7 @@
                 return;
             }
 
-            const filtered = currentQuery 
-                ? allFavorites.filter(fav => 
-                    fav.descricao.toLowerCase().includes(currentQuery.toLowerCase()) ||
-                    fav.pasta.toLowerCase().includes(currentQuery.toLowerCase()) ||
-                    (fav.notes && fav.notes.toLowerCase().includes(currentQuery.toLowerCase()))
-                )
-                : allFavorites;
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-8">
-                        <p class="text-slate-500">Nenhum favorito corresponde à busca.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = filtered.map(fav => `
+            container.innerHTML = allFavorites.map(fav => `
                 <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 mb-4 hover:border-blue-300 transition-colors">
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex-1">
@@ -573,7 +591,7 @@
             const fav = await favDB.get(codigo);
 
             // Preencher campos
-            document.getElementById('editId').value = item['Descrição'];
+            document.getElementById('editId').value = codigo;
             document.getElementById('editCodigo').value = codigo;
             document.getElementById('editDescricao').value = item['Descrição'];
             document.getElementById('editPasta').value = item['Pasta'];
@@ -642,14 +660,18 @@
             loadNotesForCards(); // Atualizar notas nos cards
 
             // Feedback
-            const btn = document.querySelector('#editSidebar button:first-of-type');
-            const originalText = btn.innerText;
-            btn.innerText = '✓ Salvo com sucesso!';
-            btn.classList.add('bg-green-600');
-            setTimeout(() => {
-                btn.innerText = originalText;
-                btn.classList.remove('bg-green-600');
-            }, 2000);
+            const btn = document.getElementById('saveNotesBtn');
+            if (btn) {
+                const originalText = btn.innerText;
+                btn.innerText = '✓ Salvo com sucesso!';
+                btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                }, 2000);
+            }
         }
 
         // ==================== Funções Existentes ====================
@@ -781,7 +803,7 @@
                             <div>
                                 <div class="flex items-center justify-between gap-2 mb-3">
                                     <span class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-md border border-blue-200">ID: ${highlight(item['Código'])}</span>
-                                    <button class="star-icon" data-codigo="${item['Código']}" onclick="event.stopPropagation(); toggleFavorite('${item['Código']}', ${JSON.stringify(item).replace(/"/g, '&quot;')});" style="background: none; border: none; cursor: pointer;">
+                                    <button class="star-icon" data-codigo="${item['Código']}" onclick="event.stopPropagation(); toggleFavorite('${item['Código']}');" style="background: none; border: none; cursor: pointer;">
                                         <svg class="w-5 h-5 text-slate-400 hover:text-yellow-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                                         </svg>
@@ -918,7 +940,7 @@
             // Busca regular (partial match)
             return {
                 type: 'partial',
-                value: query
+                value: query.toLowerCase()
             };
         }
 
@@ -1012,10 +1034,32 @@
             allExpanded = true; 
             renderDashboard(filtered);
             allExpanded = prevExpandedState;
-            renderFavoritesModal(); // Atualizar também a modal de favoritos com a busca
         }
 
-        document.getElementById('searchInput').addEventListener('input', (e) => filterContent(e.target.value));
+        const searchInput = document.getElementById('searchInput');
+        const searchHints = document.getElementById('searchHints');
+        
+        searchInput.addEventListener('input', (e) => {
+            filterContent(e.target.value);
+            // Hide hints when typing
+            if (e.target.value.length > 0) {
+                searchHints.style.display = 'none';
+            }
+        });
+        
+        searchInput.addEventListener('focus', (e) => {
+            // Show hints only when input is empty
+            if (e.target.value.length === 0) {
+                searchHints.style.display = 'block';
+            }
+        });
+        
+        searchInput.addEventListener('blur', () => {
+            // Hide hints when focus is lost
+            setTimeout(() => {
+                searchHints.style.display = 'none';
+            }, 200);
+        });
 
         // Inicializar IndexedDB e carregar dados
         async function initApp() {
@@ -1031,14 +1075,45 @@
         // Aplica tema preferido imediatamente
         applyTheme(getPreferredTheme());
 
-        fetch('dados_com_parametros_api.json')
-            .then(res => res.json())
-            .then(data => { 
-                allData = data; 
-                renderDashboard(allData);
-                initApp();
-            })
-            .catch(err => console.error(err));
+        function loadData() {
+            const container = document.getElementById('dashboardContent');
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+                    <p class="text-slate-500 text-sm mt-4">Carregando consultas...</p>
+                </div>
+            `;
+
+            fetch('dados_com_parametros_api.json')
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`Falha ao carregar dados: ${res.status} ${res.statusText}`);
+                    }
+                    return res.json();
+                })
+                .then(data => { 
+                    allData = data; 
+                    renderDashboard(allData);
+                    initApp();
+                })
+                .catch(err => {
+                    console.error('Erro ao carregar dados:', err);
+                    container.innerHTML = `
+                        <div class="text-center py-16 bg-white rounded-xl border-2 border-red-200 shadow-sm">
+                            <svg class="w-16 h-16 mx-auto text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <h3 class="text-xl font-bold text-slate-900 mb-2">Erro ao carregar dados</h3>
+                            <p class="text-slate-600 mb-4">Não foi possível carregar as consultas. Verifique sua conexão.</p>
+                            <button onclick="loadData()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+                                Tentar Novamente
+                            </button>
+                        </div>
+                    `;
+                });
+        }
+
+        loadData();
     </script>
 </body>
 </html>
