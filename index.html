@@ -37,7 +37,7 @@
             background: white;
             box-shadow: -2px 0 8px rgba(0,0,0,0.1);
             transition: width 0.3s ease;
-            z-index: 40;
+            z-index: 60;
             overflow-y: auto;
         }
 
@@ -58,7 +58,7 @@
             height: 100vh;
             background: rgba(0,0,0,0.3);
             transition: width 0.3s ease;
-            z-index: 35;
+            z-index: 55;
         }
 
         .edit-overlay.open {
@@ -127,6 +127,16 @@
         
         html.dark .text-amber-700 { color: #fbbf24 !important; }
         html.dark .text-yellow-500 { color: #fbbf24 !important; }
+        
+        html.dark #favoritesBtn {
+            background-color: #78350f !important;
+            color: #fbbf24 !important;
+            border-color: #92400e !important;
+        }
+        
+        html.dark #favoritesBtn:hover {
+            background-color: #92400e !important;
+        }
 
         html.dark .border-slate-100 { border-color: #1f2937 !important; }
         html.dark .border-slate-200 { border-color: #334155 !important; }
@@ -220,7 +230,7 @@
                            class="block w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 placeholder-slate-400 text-sm transition-all"
                            placeholder='Pesquise: termo | "exato" | termo1, termo2'>
                     <!-- Tooltip com dicas de busca -->
-                    <div class="absolute top-full left-0 mt-1 hidden group-focus-within/search:block bg-slate-900 text-white text-xs rounded-lg p-3 shadow-lg z-50 w-72 whitespace-normal border border-slate-700">
+                    <div id="searchHints" class="absolute top-full left-0 mt-1 bg-slate-900 text-white text-xs rounded-lg p-3 shadow-lg z-50 w-72 whitespace-normal border border-slate-700" style="display: none;">
                         <p class="font-bold mb-2 text-blue-300">💡 Dicas de Busca:</p>
                         <ul class="space-y-1.5 text-slate-200">
                             <li><span class="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-yellow-300">123</span> Busca número exato</li>
@@ -530,24 +540,7 @@
                 return;
             }
 
-            const filtered = currentQuery 
-                ? allFavorites.filter(fav => 
-                    fav.descricao.toLowerCase().includes(currentQuery.toLowerCase()) ||
-                    fav.pasta.toLowerCase().includes(currentQuery.toLowerCase()) ||
-                    (fav.notes && fav.notes.toLowerCase().includes(currentQuery.toLowerCase()))
-                )
-                : allFavorites;
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-8">
-                        <p class="text-slate-500">Nenhum favorito corresponde à busca.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = filtered.map(fav => `
+            container.innerHTML = allFavorites.map(fav => `
                 <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 mb-4 hover:border-blue-300 transition-colors">
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex-1">
@@ -947,7 +940,7 @@
             // Busca regular (partial match)
             return {
                 type: 'partial',
-                value: query
+                value: query.toLowerCase()
             };
         }
 
@@ -1041,10 +1034,32 @@
             allExpanded = true; 
             renderDashboard(filtered);
             allExpanded = prevExpandedState;
-            renderFavoritesModal(); // Atualizar também a modal de favoritos com a busca
         }
 
-        document.getElementById('searchInput').addEventListener('input', (e) => filterContent(e.target.value));
+        const searchInput = document.getElementById('searchInput');
+        const searchHints = document.getElementById('searchHints');
+        
+        searchInput.addEventListener('input', (e) => {
+            filterContent(e.target.value);
+            // Hide hints when typing
+            if (e.target.value.length > 0) {
+                searchHints.style.display = 'none';
+            }
+        });
+        
+        searchInput.addEventListener('focus', (e) => {
+            // Show hints only when input is empty
+            if (e.target.value.length === 0) {
+                searchHints.style.display = 'block';
+            }
+        });
+        
+        searchInput.addEventListener('blur', () => {
+            // Hide hints when focus is lost
+            setTimeout(() => {
+                searchHints.style.display = 'none';
+            }, 200);
+        });
 
         // Inicializar IndexedDB e carregar dados
         async function initApp() {
